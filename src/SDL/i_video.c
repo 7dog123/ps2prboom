@@ -156,6 +156,27 @@ static int I_TranslateKey(SDL_keysym* key)
 
 }
 
+#ifdef _EE
+// Map buttons to keys
+//
+static int I_TranslateButton(Uint8 button)
+{
+	int rc = 0;
+	
+	switch(button)
+	{
+		case PS2_START:
+			rc = KEYD_ESCAPE;
+			break;
+			
+		default:
+			rc = button;
+			break;
+	}
+	return rc;
+}
+#endif
+
 /////////////////////////////////////////////////////////////////////////////////
 // Main input code
 
@@ -173,6 +194,19 @@ static void I_GetEvent(SDL_Event *Event)
   event_t event;
 
   switch (Event->type) {
+#ifdef _EE
+  case SDL_JOYBUTTONDOWN:
+	event.type = ev_keydown;
+	event.data1 = I_TranslateButton(Event->jbutton.button);
+	D_PostEvent(&event);
+	break;
+
+  case SDL_JOYBUTTONUP:
+	event.type = ev_keyup;
+	event.data1 = I_TranslateButton(Event->jbutton.button);
+	D_PostEvent(&event);
+	break;
+#endif	
   case SDL_KEYDOWN:
     event.type = ev_keydown;
     event.data1 = I_TranslateKey(&Event->key.keysym);
@@ -500,7 +534,7 @@ static void I_ClosestResolution (int *width, int *height, int flags)
 // CPhipps -
 // I_CalculateRes
 // Calculates the screen resolution, possibly using the supplied guide
-void I_CalculateRes(unsigned int width, unsigned int height)
+void I_CalculateRes(int width, int height)
 {
   // e6y: how about 1680x1050?
   /*

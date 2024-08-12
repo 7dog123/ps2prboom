@@ -49,6 +49,10 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#ifdef _EE
+#include <SDL.h>
+#endif
+
 #include "doomdef.h"
 #include "doomtype.h"
 #include "doomstat.h"
@@ -82,6 +86,21 @@
 #include "d_deh.h"  // Ty 04/08/98 - Externalizations
 #include "lprintf.h"  // jff 08/03/98 - declaration of lprintf
 #include "am_map.h"
+
+int access(const char *path, int mode)
+{
+	FILE *test_fp;
+	
+	test_fp = fopen(path, "r");
+	
+	if(test_fp != NULL)
+	{
+		fclose(test_fp);
+		return(0);
+	}
+	
+	return(-1);
+}
 
 void GetFirstMap(int *ep, int *map); // Ty 08/29/98 - add "-warp x" functionality
 static void D_PageDrawer(void);
@@ -127,13 +146,21 @@ char    basesavegame[PATH_MAX+1];  // killough 2/16/98: savegame directory
 const char *const standard_iwads[]=
 {
   "doom2f.wad",
+  "DOOM2F.WAD",
   "doom2.wad",
+  "DOOM2.WAD",
   "plutonia.wad",
+  "PLUTONIA.WAD",
   "tnt.wad",
+  "TNT.WAD",
   "doom.wad",
+  "DOOM.WAD",
   "doom1.wad",
+  "DOOM1.WAD",
   "doomu.wad", /* CPhipps - alow doomu.wad */
+  "DOOMU.WAD",
   "freedoom.wad", /* wart@kobold.org:  added freedoom for Fedora Extras */
+  "FREEDOOM.WAD",
 };
 static const int nstandard_iwads = sizeof standard_iwads/sizeof*standard_iwads;
 
@@ -1566,6 +1593,13 @@ static void D_DoomMainSetup(void)
   //jff 9/3/98 use logical output routine
   lprintf(LO_INFO,"ST_Init: Init status bar.\n");
   ST_Init();
+
+#ifdef _EE
+  if(SDL_Init(SDL_INIT_TIMER) < 0)
+	{
+		I_Error("Could not initialize SDL [%s]", SDL_GetError());
+	}
+#endif
 
   idmusnum = -1; //jff 3/17/98 insure idmus number is blank
 

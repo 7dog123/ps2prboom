@@ -243,6 +243,9 @@ static int   dclicks2;
 // joystick values are repeated
 static int   joyxmove;
 static int   joyymove;
+#ifdef _EE
+static int   joyxside;
+#endif
 static boolean joyarray[5];
 static boolean *joybuttons = &joyarray[1];    // allow [-1]
 
@@ -326,6 +329,13 @@ void G_BuildTiccmd(ticcmd_t* cmd)
     }                                                             // phares
 
   // let movement keys cancel each other out
+#ifdef _EE
+  if(joyxside > 0)
+	  side += sidemove[speed];
+  
+  if(joyxside < 0)
+	  side -= sidemove[speed];
+#endif
 
   if (strafe)
     {
@@ -661,7 +671,7 @@ boolean G_Responder (event_t* ev)
 
     ST_Start();    // killough 3/7/98: switch status bar views too
     HU_Start();
-    S_UpdateSounds(players[displayplayer].mo);
+    //S_UpdateSounds(players[displayplayer].mo);
     R_ActivateSectorInterpolations();
     R_SmoothPlaying_Reset(NULL);
   }
@@ -736,10 +746,14 @@ boolean G_Responder (event_t* ev)
       return true;    // eat events
 
     case ev_joystick:
+	#ifdef _EE
+	  joyxside = ev->data1;
+	#else
       joybuttons[0] = ev->data1 & 1;
       joybuttons[1] = ev->data1 & 2;
       joybuttons[2] = ev->data1 & 4;
       joybuttons[3] = ev->data1 & 8;
+	#endif
       joyxmove = ev->data2;
       joyymove = ev->data3;
       return true;    // eat events

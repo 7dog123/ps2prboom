@@ -43,13 +43,13 @@
 #include <unistd.h>
 #endif
 
-#include "SDL.h"
-#include "SDL_audio.h"
-#include "SDL_mutex.h"
-#include "SDL_byteorder.h"
-#include "SDL_version.h"
+#include <SDL.h>
+#include <SDL_audio.h>
+#include <SDL_mutex.h>
+#include <SDL_byteorder.h>
+#include <SDL_version.h>
 #ifdef HAVE_MIXER
-#include "SDL_mixer.h"
+#include <SDL_mixer.h>
 #endif
 
 #include "z_zone.h"
@@ -573,7 +573,6 @@ void I_InitSound(void)
 #ifndef HAVE_OWN_MUSIC
 
 #ifdef HAVE_MIXER
-#include "SDL_mixer.h"
 #include "mmus2mid.h"
 
 static Mix_Music *music[2] = { NULL, NULL };

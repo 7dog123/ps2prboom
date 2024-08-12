@@ -107,8 +107,13 @@ typedef enum {
 // when multiple screen sizes are supported
 
 // proff 08/17/98: Changed for high-res
+#ifdef _EE
+#define MAX_SCREENWIDTH  1920
+#define MAX_SCREENHEIGHT 1080
+#else
 #define MAX_SCREENWIDTH  2048
 #define MAX_SCREENHEIGHT 1536
+#endif
 
 // SCREENWIDTH and SCREENHEIGHT define the visible size
 extern int SCREENWIDTH;
@@ -298,6 +303,19 @@ typedef enum {
 #define KEYD_KEYPADMINUS  (0x100 + '-')
 #define KEYD_KEYPADPLUS   (0x100 + '+')
 #define KEYD_KEYPADPERIOD (0x100 + '.')
+
+#define PS2_SQUARE 0
+#define PS2_CROSS 1
+#define PS2_CIRCLE 2
+#define PS2_TRIANGLE 3
+#define PS2_SELECT 4
+#define PS2_START 5
+#define PS2_L1 6
+#define PS2_R1 7
+#define PS2_L2 8
+#define PS2_R2 9
+#define PS2_L3 10
+#define PS2_R3 11
 
 // phares 4/19/98:
 // Defines Setup Screen groups that config variables appear in.

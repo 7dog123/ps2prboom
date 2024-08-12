@@ -41,7 +41,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #else
-#include <sys/mman.h>
+//#include <sys/mman.h>
 #endif
 
 #include "doomstat.h"

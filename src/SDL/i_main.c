@@ -124,6 +124,9 @@ void I_Init(void)
 
 /* cleanup handling -- killough:
  */
+#ifdef _EE
+// do nothing
+#else
 static void I_SignalHandler(int s)
 {
   char buf[2048];
@@ -141,7 +144,7 @@ static void I_SignalHandler(int s)
 
   I_Error("I_SignalHandler: %s", buf);
 }
-
+#endif
 
 
 /* killough 2/22/98: Add support for ENDBOOM, which is PC-specific
@@ -288,9 +291,13 @@ static void I_EndDoom(void)
       }
 #endif
       /* cph - portable ascii printout if requested */
+#ifdef _EE
+      // Do Nothing
+#else
       if (isascii(endoom[i][0]) || (endoom_mode & endoom_nonasciichars))
         lprintf(LO_INFO,"%c",endoom[i][0]);
       else /* Probably a box character, so do #'s */
+#endif
         lprintf(LO_INFO,"#");
     }
 #ifndef _WIN32
@@ -338,10 +345,33 @@ static void I_Quit (void)
   }
 }
 
-#ifdef SECURE_UID
+#ifdef _EE
+/* Declare usbd module */
+extern unsigned char usbd[];
+extern unsigned int size_usbd;
+/* Declare usbhdfsd module */
+extern unsigned char usbhdfsd[];
+extern unsigned int size_usbhdfsd;
+#include <sifrpc.h>
+#include <loadfile.h>
+#include <kernel.h>
+
+void LoadModule(const char *path, int argc, char *argv)
+{
+	int ret;
+
+	ret = SifLoadModule(path, argc, argv);
+
+	if(ret < 0)
+	{
+		printf("Could not load module %s: %d\n", path, ret);
+		SleepThread();
+	}
+}
+//#include <romfs_io.h>
+#elif SECURE_UID
 uid_t stored_euid = -1;
 #endif
-
 //int main(int argc, const char * const * argv)
 int main(int argc, char **argv)
 {
@@ -355,8 +385,18 @@ int main(int argc, char **argv)
       fprintf(stderr, "Revoked uid %d\n",stored_euid);
 #endif
 
+#ifdef _EE
+  	int ret;
+	
+	//rioInit();
+#endif
+
   myargc = argc;
+#ifdef _EE
+  myargv = (const char* const *) argv;
+#else
   myargv = argv;
+#endif
 
 #ifdef _WIN32
   if (!M_CheckParm("-nodraw")) {
@@ -364,6 +404,15 @@ int main(int argc, char **argv)
     Init_ConsoleWin();
     atexit(Done_ConsoleWin);
   }
+#elif _EE
+	SifInitRpc(0);
+
+	LoadModule("rom0:XSIO2MAN", 0, NULL);
+	LoadModule("rom0:XMCMAN", 0, NULL);
+	LoadModule("rom0:XMCSERV", 0, NULL);
+
+	SifExecModuleBuffer(usbd, size_usbd, 0, NULL, &ret);
+	SifExecModuleBuffer(usbhdfsd, size_usbhdfsd, 0, NULL, &ret);
 #endif
   /* Version info */
   lprintf(LO_INFO,"\n");
@@ -390,7 +439,9 @@ int main(int argc, char **argv)
   Z_Init();                  /* 1/18/98 killough: start up memory stuff first */
 
   atexit(I_Quit);
-#ifndef _DEBUG
+#ifndef _EE
+  // do nothing  
+#elif defined(_DEBUG)
   signal(SIGSEGV, I_SignalHandler);
   signal(SIGTERM, I_SignalHandler);
   signal(SIGFPE,  I_SignalHandler);

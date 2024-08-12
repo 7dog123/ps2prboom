@@ -279,6 +279,25 @@ const char *I_DoomExeDir(void)
 
 /* Defined elsewhere */
 
+#elif defined(_EE)
+
+int fioMkdir(const char *dirname);
+
+static const char prboom_dir[] = {"mc0:DOOM"};
+
+const char *I_DoomExeDir(void)
+{
+	static char *base;
+	
+	if(!base)
+	{
+		base = malloc(strlen(prboom_dir) + 1);
+		strcpy(base, prboom_dir);
+		fioMkdir(base); // Make sure it exists
+	}
+	return base;
+}
+
 #else
 // cph - V.Aguilar (5/30/99) suggested return ~/.lxdoom/, creating
 //  if non-existant
@@ -385,6 +404,70 @@ char* I_FindFile(const char* wfname, const char* ext)
     free(p);
   }
   return NULL;
+}
+
+#elif defined(_EE)
+char* I_FindFile(const char* wfname, const char* ext)
+{
+	int i;
+	/* Precalculate a length we will need in the loop */
+	size_t pl = strlen(wfname) + strlen(ext) + 4;
+	
+	for(i = 0; i < 5; i++)
+	{
+		char * p;
+		const char * d = NULL;
+		const char * s = NULL;
+		
+		/* Each entry in the switch sets d to directory to look in
+		* and optionally s to a subdirectory of d*/
+		switch(i)
+		{
+			case 0:
+			  d = "";
+			  break;
+              
+			case 1:
+			  d = "host:"
+			  break;
+			
+			case 2:
+			  d = "hdd0:/+DOOM/"
+			  break;
+			
+			case 3:
+			  d = "mass:/"
+			  break;
+			  
+			case 4:
+			  d = "cdrom:\\";
+			  break;
+			  
+			case 5:
+			  d = I_DoomExeDir();
+			  break;
+			
+		}
+		
+		p = malloc((d ? strlen(d) : 0) + ( s ? strlen(s) :  0 + pl);
+		sprintf(p, "%s%s%s%s%s", d ? d : "", (d && !HasTrailingSlash(d)) ? "/" : ""),
+		        s ? s : "", (s && !HasTrailingSlash(s)) ? "/" : "",
+				wfname);
+		
+		if(access(p, F_OK))
+			strcat(p, ext);
+		
+		if (!access(p, F_OK))
+		{
+			lprintf(LO_INFO, " found %s\n", p);
+			return p;
+		}
+		
+		free(p);
+		
+	}
+	
+	return NULL;
 }
 #endif
 
