@@ -87,21 +87,6 @@
 #include "lprintf.h"  // jff 08/03/98 - declaration of lprintf
 #include "am_map.h"
 
-int access(const char *path, int mode)
-{
-	FILE *test_fp;
-	
-	test_fp = fopen(path, "r");
-	
-	if(test_fp != NULL)
-	{
-		fclose(test_fp);
-		return(0);
-	}
-	
-	return(-1);
-}
-
 void GetFirstMap(int *ep, int *map); // Ty 08/29/98 - add "-warp x" functionality
 static void D_PageDrawer(void);
 
