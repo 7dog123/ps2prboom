@@ -1,13 +1,30 @@
 EE_OBJS_DIR = ../obj/
 EE_BIN_DIR = ../
 
+USE_GL_SRC ?= 0
+
+ifeq (($(USE_GL_SRC)), 1)
+EE_BIN = $(EE_BIN_DIR)glboom.elf
+else
 EE_BIN = $(EE_BIN_DIR)prboom.elf
+endif
 
-EE_INCS = -I$(PS2SDK)/ports/include -I$(PS2SDK)/ports/include/SDL -I$(PS2SDK)/ports/include/zlib -I../ -I./
-EE_LIBS = -L$(PS2SDK)/ports/lib -L$(PS2DEV)/gsKit/lib -L../lib -lpng -lsdlmixer -lm -lsdl -ldebug -lgskit -ldmakit -lcdvd -lps2ip -lnetman -lz -lsdldoom
+EE_INCS = -I$(PS2SDK)/ee/include -I$(PS2SDK)/ports/include -I$(PS2SDK)/ports/include/SDL -I$(PS2SDK)/ports/include/zlib -I../ -I./
+EE_LDFLAGS = -L$(PS2SDK)/ee/lib -L$(PS2SDK)/ports/lib -L$(PS2DEV)/gsKit/lib -L../lib 
+SDL_LIBS = -lpng -lsdlmixer -lm -lsdl -lmodplug -lmikmod -logg -lopusfile -lopus -lstdc++ 
+ifeq (($(USE_GL_SRC)), 1)
+PS2GL_LIBS = -lps2glut -lps2gl -lps2stuff 
+endif
+#  -lcdvd -lhdd -lpoweroff 
+IOP_MODULES_LIBS = -lfileXio -lmc -lpad
+EE_LIBS = $(IOP_MODULES_LIBS) $(SDL_LIBS) $(PS2GL_LIBS) -lsdldoom -lz -lm -ldebug -lc -lgskit -ldmakit -ldma -lpatches -lconfig
 
-EE_CFLAGS = -DUSE_RWOPS -DHAVE_CONFIG_H -DHAVE_STRLWR -DUSE_SDL -Wall -Wno-unused -Wno-switch -march=r5900 -Wextra -Wno-missing-field-initializers -Winline -Wwrite-strings -Wundef -Wbad-function-cast -Wcast-align -Wcast-qual -Wdeclaration-after-statement -ffast-math -O2 -fomit-frame-pointer -D_GNU_SOURCE=1 -Dmain=SDL_main
-EE_CXXFLAGS = -DHAVE_CONFIG_H -DHAVE_STRLWR -DUSE_SDL
+ifeq (($(USE_GL_SRC)), 1)
+PS2GL_CFLAGS = -DNO_VU0_VECTORS -DNO_ASM
+endif
+
+EE_CFLAGS = $(PS2GL_CFLAGS) -DUSE_RWOPS -DHAVE_CONFIG_H -DHAVE_STRLWR -DUSE_SDL -DPACKEDATTR= -DHAVE_SDL_JOYSTICKGETAXIS -Dstrnicmp=strncasecmp -Dstricmp=strcasecmp -Wall -Wno-unused -Wno-switch -march=r5900 -Wextra -Wno-missing-field-initializers -Winline -Wwrite-strings -Wundef -Wbad-function-cast -Wcast-align -Wcast-qual -Wdeclaration-after-statement -ffast-math -O2 -fomit-frame-pointer -D_GNU_SOURCE=1
+EE_CXXFLAGS = -DHAVE_CONFIG_H -DHAVE_STRLWR -DUSE_SDL -DHAVE_SDL_JOYSTICKGETAXIS
 
 COMMON_SRC = \
           am_map.o g_game.o p_mobj.o r_demo.o r_segs.o hu_lib.o lprintf.o \
@@ -22,35 +39,38 @@ COMMON_SRC = \
 		  z_zone.o p_maputl.o r_plane.o md5.o p_checksum.o r_patch.o \
 		  r_fps.o r_filter.o
 
-NET_CLIENT_SRC = d_client.o
-USE_GL_SRC =
-#USE_GL_SRC = gl_main.o gl_texture.o
-WAD_SRC = w_memcache.o
-#WAD_SRC = w_mmap.c
-EE_OBJS = mmus2mid.o $(COMMON_SRC) $(NET_CLIENT_SRC) $(USE_GL_SRC) $(WAD_SRC)
-EE_OBJS := $(EE_OBJS:%=$(EE_OBJS_DIR)%)
-EE_OBJS += $(EE_OBJS_DIR)usbd.o
-EE_OBJS += $(EE_OBJS_DIR)usbhdfsd.o
+BIN2C = $(PS2SDK)/bin/bin2c
 
-all: $(EE_OBJS_DIR) $(EE_BIN_DIR) $(EE_BIN)
-	
+IRX_OBJS = iomanX.irx fileXio.irx sio2man.irx mcman.irx mcserv.irx padman.irx libsd.irx usbd.irx bdm.irx bdmfs_fatfs.irx  \
+usbmass_bd.irx
+
+NET_CLIENT_SRC = d_client.o
+ifeq (($(USE_GL_SRC)), 1)
+GL_SRC = gl_main.o gl_texture.o
+endif
+WAD_SRC = w_memcache.o
+SDLDOOM_SOURCES = i_main.o i_network.o i_video.o i_sound.o \
+	              i_system.o i_joy.o i_sshot.o
+#WAD_SRC = w_mmap.c
+EE_OBJS = mmus2mid.o $(SDLDOOM_SOURCES) $(COMMON_SRC) $(NET_CLIENT_SRC) $(GL_SRC) $(WAD_SRC)
+EE_OBJS := $(EE_OBJS:%=$(EE_OBJS_DIR)%) $(IRX_OBJS:.irx=_irx.o)
+
+all: $(EE_OBJS_DIR) $(EE_BIN_DIR) $(EE_BIN) 
+ 
 $(EE_BIN_DIR):
 	mkdir -p $(EE_BIN_DIR)
 
-$(EE_OBJS_DIR):
+$(EE_OBJS_DIR): 
 	mkdir -p $(EE_OBJS_DIR)
 
 $(EE_OBJS_DIR)%.o : %.c
 	$(EE_C_COMPILE) -c $< -o $@
 
-$(EE_OBJS_DIR)usbd.c : $(PS2SDK)/iop/irx/usbd.irx
-	$(PS2SDK)/bin/bin2c $(PS2SDK)/iop/irx/usbd.irx usbd.c usbd
-
-$(EE_OBJS_DIR)usbhdfsd.c : $(PS2SDK)/iop/irx/usbhdfsd.irx
-	$(PS2SDK)/bin/bin2c $(PS2SDK)/iop/irx/usbhdfsd.irx usbhdfsd.c usbhdfsd
+%_irx.c:
+	$(BIN2C) $(PS2SDK)/iop/irx/$*.irx $@ $*_irx 
 
 clean:
-	rm -f $(EE_BIN) $(EE_OBJS) usbd.c usbhdfsd.c
+	rm -fr $(EE_BIN) $(EE_OBJS) $(EE_OBJS_DIR)
 	
 include $(PS2SDK)/samples/Makefile.pref
 include $(PS2SDK)/samples/Makefile.eeglobal

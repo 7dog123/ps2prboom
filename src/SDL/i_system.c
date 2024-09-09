@@ -279,35 +279,24 @@ const char *I_DoomExeDir(void)
 
 /* Defined elsewhere */
 
-#elif defined(_EE)
-
-int fioMkdir(const char *dirname);
-
-static const char prboom_dir[] = {"mc0:DOOM"};
-
-const char *I_DoomExeDir(void)
-{
-	static char *base;
-	
-	if(!base)
-	{
-		base = malloc(strlen(prboom_dir) + 1);
-		strcpy(base, prboom_dir);
-		fioMkdir(base); // Make sure it exists
-	}
-	return base;
-}
-
 #else
 // cph - V.Aguilar (5/30/99) suggested return ~/.lxdoom/, creating
 //  if non-existant
+#ifdef _EE // André - Add this to mc:/PRBOOM
+static const char prboom_dir[] = {"mc0:/prboom"}; // Mead rem extra slash 8/21/03
+#else
 static const char prboom_dir[] = {"/.prboom"}; // Mead rem extra slash 8/21/03
+#endif
 
 const char *I_DoomExeDir(void)
 {
   static char *base;
   if (!base)        // cache multiple requests
     {
+#ifdef _EE
+		  base = malloc(strlen(prboom_dir) + 1);
+		  strcpy(base, prboom_dir);
+#else
       char *home = getenv("HOME");
       size_t len = strlen(home);
 
@@ -316,6 +305,7 @@ const char *I_DoomExeDir(void)
       // I've had trouble with trailing slashes before...
       if (base[len-1] == '/') base[len-1] = 0;
       strcat(base, prboom_dir);
+#endif
       mkdir(base, S_IRUSR | S_IWUSR | S_IXUSR); // Make sure it exists
     }
   return base;

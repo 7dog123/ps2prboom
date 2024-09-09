@@ -147,7 +147,9 @@
 #define PACKAGE_VERSION "2.5.0"
 
 /* Set to the attribute to apply to struct definitions to make them packed */
+#ifndef PACKEDATTR
 #define PACKEDATTR __attribute__((packed))
+#endif
 
 /* Define to enable internal range checking */
 /* #undef RANGECHECK */

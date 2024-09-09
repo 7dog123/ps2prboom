@@ -124,9 +124,7 @@ void I_Init(void)
 
 /* cleanup handling -- killough:
  */
-#ifdef _EE
-// do nothing
-#else
+#ifndef _EE // do nothing
 static void I_SignalHandler(int s)
 {
   char buf[2048];
@@ -291,9 +289,7 @@ static void I_EndDoom(void)
       }
 #endif
       /* cph - portable ascii printout if requested */
-#ifdef _EE
-      // Do Nothing
-#else
+#ifndef _EE // do nothing
       if (isascii(endoom[i][0]) || (endoom_mode & endoom_nonasciichars))
         lprintf(LO_INFO,"%c",endoom[i][0]);
       else /* Probably a box character, so do #'s */
@@ -346,15 +342,47 @@ static void I_Quit (void)
 }
 
 #ifdef _EE
-/* Declare usbd module */
-extern unsigned char usbd[];
-extern unsigned int size_usbd;
-/* Declare usbhdfsd module */
-extern unsigned char usbhdfsd[];
-extern unsigned int size_usbhdfsd;
-#include <sifrpc.h>
+
+#define NEWLIB_PORT_AWARE
+#include <fileXio_rpc.h>
+#include <fileio.h>
 #include <loadfile.h>
+#include <sifrpc.h>
+#include <fileio.h>
+#include <debug.h>
+#include <libmc.h>
+#include <sbv_patches.h>
+#include <sifrpc.h>
 #include <kernel.h>
+
+#include <sys/stat.h>
+
+#define IMPORT_BIN2C(_T) \
+    extern unsigned char _T[]; \
+    extern unsigned int size_##_T
+
+
+IMPORT_BIN2C(iomanX_irx);
+IMPORT_BIN2C(fileXio_irx);
+IMPORT_BIN2C(sio2man_irx);
+IMPORT_BIN2C(mcman_irx);
+IMPORT_BIN2C(mcserv_irx);
+IMPORT_BIN2C(padman_irx);
+IMPORT_BIN2C(libsd_irx);
+IMPORT_BIN2C(usbd_irx);
+//IMPORT_BIN2C(usb_mass_irx);
+IMPORT_BIN2C(bdm_irx);
+IMPORT_BIN2C(bdmfs_fatfs_irx);
+IMPORT_BIN2C(usbmass_bd_irx);
+#include <kernel.h>
+
+#define LOAD_IRX(_irx, argc, arglist) \
+    ID = SifExecModuleBuffer(&_irx, size_##_irx, argc, arglist, &ret); \
+    printf("%s: id:%d, ret:%d\n", #_irx, ID, ret); 
+
+#define LOAD_IRX_NARG(_irx) LOAD_IRX(_irx, 0, NULL)
+
+#define LOAD_IRX_INTERNALY(_irx, path, argc, argv)
 
 void LoadModule(const char *path, int argc, char *argv)
 {
@@ -368,7 +396,59 @@ void LoadModule(const char *path, int argc, char *argv)
 		SleepThread();
 	}
 }
-//#include <romfs_io.h>
+
+static void initMC(void)
+{
+   int ret;
+   // mc variables
+   int mc_Type, mc_Free, mc_Format;
+
+   
+   printf("initMC: Initializing Memory Card\n");
+
+   ret = mcInit(MC_TYPE_XMC);
+   
+   if( ret < 0 ) {
+	printf("initMC: failed to initialize memcard server.\n");
+   } else {
+       printf("initMC: memcard server started successfully.\n");
+   }
+   
+   // Since this is the first call, -1 should be returned.
+   // makes me sure that next ones will work !
+   mcGetInfo(0, 0, &mc_Type, &mc_Free, &mc_Format); 
+   mcSync(MC_WAIT, NULL, &ret);
+}
+
+static void waitUntilUsbDeviceIsReady() {
+  struct stat buffer;
+  int ret = -1;
+  int retries = 50;
+
+  while (ret != 0 && retries > 0) {
+    ret = stat("mass:/", &buffer);
+    /* Wait until the device is ready */
+    nopdelay();
+
+    retries--;
+  }
+}
+
+static void reset_IOP() {
+	SifInitRpc(0);
+#ifdef IOP
+	#if !defined(DEBUG) || defined(BUILD_FOR_PCSX2)
+	/* Comment this line if you don't wanna debug the output */
+	while(!SifIopReset("", 0)){};
+	#endif
+	while(!SifIopSync()){};
+
+	SifInitRpc(0);
+#endif  
+	//sbv_patch_enable_lmb();
+	//sbv_patch_disable_prefix_check();
+}
+
 #elif SECURE_UID
 uid_t stored_euid = -1;
 #endif
@@ -384,11 +464,8 @@ int main(int argc, char **argv)
     else
       fprintf(stderr, "Revoked uid %d\n",stored_euid);
 #endif
-
 #ifdef _EE
-  	int ret;
-	
-	//rioInit();
+  	int ret, ID;
 #endif
 
   myargc = argc;
@@ -405,14 +482,26 @@ int main(int argc, char **argv)
     atexit(Done_ConsoleWin);
   }
 #elif _EE
-	SifInitRpc(0);
+	reset_IOP();
 
-	LoadModule("rom0:XSIO2MAN", 0, NULL);
-	LoadModule("rom0:XMCMAN", 0, NULL);
-	LoadModule("rom0:XMCSERV", 0, NULL);
-
-	SifExecModuleBuffer(usbd, size_usbd, 0, NULL, &ret);
-	SifExecModuleBuffer(usbhdfsd, size_usbhdfsd, 0, NULL, &ret);
+	//LoadModule("rom0:XSIO2MAN", 0, NULL);
+	//LoadModule("rom0:XMCMAN", 0, NULL);
+	//LoadModule("rom0:XMCSERV", 0, NULL);
+  LOAD_IRX_NARG(iomanX_irx);
+  LOAD_IRX_NARG(fileXio_irx);
+  fileXioInit();
+  LOAD_IRX_NARG(sio2man_irx);
+  LOAD_IRX_NARG(mcman_irx);
+  LOAD_IRX_NARG(mcserv_irx);
+  initMC();
+  LOAD_IRX_NARG(padman_irx);
+  LOAD_IRX_NARG(libsd_irx);
+  LOAD_IRX_NARG(usbd_irx);
+  //Here would add DS4/DS3 support.
+  LOAD_IRX_NARG(bdm_irx);
+  LOAD_IRX_NARG(bdmfs_fatfs_irx);
+  LOAD_IRX_NARG(usbmass_bd_irx);
+  waitUntilUsbDeviceIsReady();
 #endif
   /* Version info */
   lprintf(LO_INFO,"\n");
